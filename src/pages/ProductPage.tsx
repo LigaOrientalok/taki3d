@@ -23,7 +23,7 @@ export default function ProductPage() {
     );
   }
 
-  if (!product) return <Navigate to="/tienda" replace />;
+  if (!product) return <Navigate to="/404" replace />;
 
   const available = isAvailable(product);
   const max = maxOrderable(product);

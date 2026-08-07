@@ -46,15 +46,16 @@ export default function CheckoutPage() {
     () => new URLSearchParams(window.location.search).get("status"),
     [],
   );
-  const [orderNumber] = useState(
-    () =>
-      new URLSearchParams(window.location.search).get("order") ??
-      `TK-${Math.floor(100000 + Math.random() * 900000)}`,
+  const [orderNumber, setOrderNumber] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get("order"),
   );
   const [cartSnapshot] = useState(() => items);
 
   useEffect(() => {
     if (returnStatus === "success") {
+      const saved = localStorage.getItem("taki3d-last-order");
+      if (saved) setOrderNumber(saved);
+      localStorage.removeItem("taki3d-last-order");
       setMpSuccess(true);
       setPlaced(true);
       clearCart();
@@ -76,8 +77,43 @@ export default function CheckoutPage() {
     0,
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const formEl = formRef.current;
+    if (formEl && !formEl.checkValidity()) {
+      formEl.requestSubmit();
+      return;
+    }
+    setPaymentError(null);
+    const createOrder = async () => {
+      const res = await fetch("/api/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: cartSnapshot.map((item) => ({
+            id: item.product.id,
+            title: item.product.title,
+            quantity: item.quantity,
+            unit_price: item.product.price,
+          })),
+          payer: { name: form.name, email: form.email, phone: form.phone },
+          delivery: form.delivery,
+          address: form.address,
+          notes: form.notes,
+          paymentMethod: "whatsapp",
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      return data?.orderId as string | undefined;
+    };
+    let id: string | undefined;
+    try {
+      id = await createOrder();
+    } catch {
+      id = undefined;
+    }
+    setOrderNumber(id ?? `TK-${Math.floor(100000 + Math.random() * 900000)}`);
     setPlaced(true);
     clearCart();
   };
@@ -92,7 +128,7 @@ export default function CheckoutPage() {
     setPaying(true);
     try {
       const origin = window.location.origin;
-      const res = await fetch("/api/create-preference", {
+      const res = await fetch("/api/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -103,18 +139,24 @@ export default function CheckoutPage() {
             unit_price: item.product.price,
           })),
           payer: { name: form.name, email: form.email, phone: form.phone },
-          externalReference: orderNumber,
           delivery: form.delivery,
+          address: form.address,
+          notes: form.notes,
+          paymentMethod: "mp",
           backUrls: {
-            success: `${origin}/checkout?status=success&order=${orderNumber}`,
-            pending: `${origin}/checkout?status=pending&order=${orderNumber}`,
-            failure: `${origin}/checkout?status=failure&order=${orderNumber}`,
+            success: `${origin}/checkout?status=success`,
+            pending: `${origin}/checkout?status=pending`,
+            failure: `${origin}/checkout?status=failure`,
           },
         }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.initPoint) {
         throw new Error(data?.error ?? "Error");
+      }
+      if (data.orderId) {
+        setOrderNumber(data.orderId);
+        localStorage.setItem("taki3d-last-order", data.orderId);
       }
       window.location.href = data.initPoint;
     } catch {
@@ -126,7 +168,7 @@ export default function CheckoutPage() {
   };
 
   const orderMessage = whatsappLink(
-    `Hola TAKI3D! Soy ${form.name || "..."}. Quiero confirmar mi pedido ${orderNumber}:\n` +
+    `Hola TAKI3D! Soy ${form.name || "..."}. Quiero confirmar mi pedido ${orderNumber ?? "..."}:\n` +
       cartSnapshot
         .map(
           (item) =>
@@ -153,7 +195,7 @@ export default function CheckoutPage() {
               <>
                 Gracias por tu compra. Tu número de pedido es{" "}
                 <span className="font-semibold text-brand-blue">
-                  {orderNumber}
+                  {orderNumber ?? "—"}
                 </span>{" "}
                 y el pago por MercadoPago fue acreditado.
               </>
@@ -161,7 +203,7 @@ export default function CheckoutPage() {
               <>
                 Tu número de pedido es{" "}
                 <span className="font-semibold text-brand-blue">
-                  {orderNumber}
+                  {orderNumber ?? "—"}
                 </span>
                 . Ya reservamos tus productos.
               </>
