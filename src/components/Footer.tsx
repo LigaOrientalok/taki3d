@@ -1,5 +1,5 @@
 import { Mail } from "lucide-react";
-import { FaFacebookF, FaInstagram, FaWhatsapp } from "react-icons/fa6";
+import { FaInstagram, FaWhatsapp } from "react-icons/fa6";
 import Logo from "./Logo";
 import { CONTACT_EMAIL, INSTAGRAM_URL, WHATSAPP_URL } from "@/lib/utils";
 
@@ -14,7 +14,6 @@ const links = [
 const socials = [
   { href: WHATSAPP_URL, label: "WhatsApp", icon: FaWhatsapp },
   { href: INSTAGRAM_URL, label: "Instagram", icon: FaInstagram },
-  { href: "#", label: "Facebook", icon: FaFacebookF },
 ];
 
 export default function Footer() {

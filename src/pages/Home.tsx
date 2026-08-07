@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import About from "@/components/About";
 import Contact from "@/components/Contact";
 import CTA from "@/components/CTA";
 import Hero from "@/components/Hero";
@@ -23,6 +24,7 @@ export default function Home() {
       <Suspense fallback={<SectionFallback />}>
         <Gallery />
       </Suspense>
+      <About />
       <Timeline />
       <WhyChoose />
       <Stats />
