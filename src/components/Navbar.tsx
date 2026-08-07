@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, ShoppingCart, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Logo from "./Logo";
 import { useCart } from "@/context/CartContext";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,14 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const { count, openCart } = useCart();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const onSection = (e: React.MouseEvent, href: string) => {
+    if (pathname === "/") return;
+    e.preventDefault();
+    navigate(`/${href}`);
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -37,7 +45,11 @@ export default function Navbar() {
       )}
     >
       <nav className="mx-auto flex h-18 max-w-6xl items-center justify-between px-6 py-3">
-        <a href="#inicio" aria-label="TAKI3D - Inicio">
+        <a
+          href="#inicio"
+          aria-label="TAKI3D - Inicio"
+          onClick={(e) => onSection(e, "#inicio")}
+        >
           <Logo theme="dark" className="h-8" />
         </a>
 
@@ -54,6 +66,7 @@ export default function Navbar() {
               ) : (
                 <a
                   href={link.href}
+                  onClick={(e) => onSection(e, link.href)}
                   className="text-sm font-medium text-zinc-400 transition-colors duration-300 hover:text-white"
                 >
                   {link.label}
@@ -78,6 +91,7 @@ export default function Navbar() {
           </button>
           <a
             href="#contacto"
+            onClick={(e) => onSection(e, "#contacto")}
             className="hidden rounded-full bg-brand-blue px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-blue/25 transition-all duration-300 hover:bg-white hover:text-brand-black lg:inline-flex"
           >
             Pedir Presupuesto
@@ -116,7 +130,10 @@ export default function Navbar() {
                   ) : (
                     <a
                       href={link.href}
-                      onClick={() => setOpen(false)}
+                      onClick={(e) => {
+                        onSection(e, link.href);
+                        setOpen(false);
+                      }}
                       className="block py-3 text-sm font-medium text-zinc-300 transition-colors hover:text-white"
                     >
                       {link.label}
@@ -127,7 +144,10 @@ export default function Navbar() {
               <li className="pt-3 pb-2">
                 <a
                   href="#contacto"
-                  onClick={() => setOpen(false)}
+                  onClick={(e) => {
+                    onSection(e, "#contacto");
+                    setOpen(false);
+                  }}
                   className="block rounded-full bg-brand-blue py-3 text-center text-sm font-semibold text-white"
                 >
                   Pedir Presupuesto
