@@ -3,15 +3,25 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { ArrowLeft, MessageCircle, Minus, Plus, ShieldCheck, ShoppingCart, Truck } from "lucide-react";
 import ProductImage from "@/components/ProductImage";
 import { useCart } from "@/context/CartContext";
-import { formatPrice, isAvailable, maxOrderable, stockLabel, MOCK_PRODUCTS } from "@/lib/store";
+import { useProducts } from "@/hooks/useProducts";
+import { formatPrice, isAvailable, maxOrderable, stockLabel } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { whatsappLink } from "@/lib/utils";
 
 export default function ProductPage() {
   const { slug } = useParams();
-  const product = MOCK_PRODUCTS.find((p) => p.slug === slug);
+  const { products, loading } = useProducts();
+  const product = products.find((p) => p.slug === slug);
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
+
+  if (loading) {
+    return (
+      <div className="grid min-h-screen place-items-center px-6 pt-32 pb-24">
+        <div className="h-12 w-12 animate-spin rounded-full border-2 border-white/10 border-t-brand-blue" />
+      </div>
+    );
+  }
 
   if (!product) return <Navigate to="/tienda" replace />;
 
@@ -34,20 +44,30 @@ export default function ProductPage() {
         </Link>
 
         <div className="mt-8 grid gap-10 lg:grid-cols-2">
-          <div className="relative aspect-square overflow-hidden rounded-3xl border border-white/8">
-            <ProductImage product={product} />
-            <span
-              className={cn(
-                "absolute top-4 left-4 rounded-full px-3 py-1.5 text-xs font-semibold backdrop-blur-sm",
-                product.stockMode === "pedido"
-                  ? "bg-brand-blue/20 text-brand-blue"
-                  : product.quantity <= 0
-                    ? "bg-red-500/20 text-red-400"
-                    : "bg-brand-green/15 text-brand-green",
-              )}
-            >
-              {stockLabel(product)}
-            </span>
+          <div className="space-y-4">
+            <div className="relative aspect-square overflow-hidden rounded-3xl border border-white/8">
+              <ProductImage product={product} />
+              <span
+                className={cn(
+                  "absolute top-4 left-4 rounded-full px-3 py-1.5 text-xs font-semibold backdrop-blur-sm",
+                  product.stockMode === "pedido"
+                    ? "bg-brand-blue/20 text-brand-blue"
+                    : product.quantity <= 0
+                      ? "bg-red-500/20 text-red-400"
+                      : "bg-brand-green/15 text-brand-green",
+                )}
+              >
+                {stockLabel(product)}
+              </span>
+            </div>
+            {product.video && (
+              <video
+                src={product.video}
+                controls
+                preload="metadata"
+                className="aspect-video w-full rounded-3xl border border-white/8 bg-black"
+              />
+            )}
           </div>
 
           <div className="flex flex-col">

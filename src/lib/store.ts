@@ -22,6 +22,7 @@ export interface Product {
   stockMode: StockMode;
   quantity: number;
   images: string[];
+  video?: string;
   placeholder: {
     gradient: string;
     icon: LucideIcon;

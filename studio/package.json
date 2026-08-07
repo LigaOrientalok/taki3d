@@ -1,0 +1,21 @@
+{
+  "name": "taki3d-studio",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "sanity dev",
+    "build": "sanity build",
+    "deploy": "sanity deploy",
+    "start": "sanity start"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sanity": "^3.60.0",
+    "styled-components": "^6.5.0"
+  },
+  "devDependencies": {
+    "@sanity/cli": "^3.60.0"
+  }
+}

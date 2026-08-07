@@ -2,22 +2,24 @@ import { motion } from "framer-motion";
 import { LayoutGrid, ListFilter } from "lucide-react";
 import { useMemo, useState } from "react";
 import ProductCard from "@/components/ProductCard";
-import { CATEGORIES, MOCK_PRODUCTS } from "@/lib/store";
+import { useProducts } from "@/hooks/useProducts";
+import { CATEGORIES } from "@/lib/store";
 
 type Sort = "destacados" | "menor" | "mayor";
 
 export default function Store() {
   const [category, setCategory] = useState("Todos");
   const [sort, setSort] = useState<Sort>("destacados");
+  const { products: allProducts } = useProducts();
 
   const products = useMemo(() => {
-    let list = [...MOCK_PRODUCTS];
+    let list = [...allProducts];
     if (category !== "Todos") list = list.filter((p) => p.category === category);
     if (sort === "menor") list.sort((a, b) => a.price - b.price);
     if (sort === "mayor") list.sort((a, b) => b.price - a.price);
     if (sort === "destacados") list.sort((a, b) => Number(b.featured ?? false) - Number(a.featured ?? false));
     return list;
-  }, [category, sort]);
+  }, [allProducts, category, sort]);
 
   return (
     <div className="relative min-h-screen px-6 pt-32 pb-24">
