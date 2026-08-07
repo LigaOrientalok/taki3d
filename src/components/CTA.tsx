@@ -1,4 +1,5 @@
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, ShoppingBag } from "lucide-react";
+import { Link } from "react-router-dom";
 import { WHATSAPP_URL } from "@/lib/utils";
 import Reveal from "./Reveal";
 
@@ -34,6 +35,13 @@ export default function CTA() {
                   <MessageCircle className="h-4 w-4" />
                   Pedir presupuesto gratis
                 </a>
+                <Link
+                  to="/tienda"
+                  className="inline-flex h-13 items-center justify-center gap-2 rounded-full glass px-8 text-sm font-semibold text-white transition-all duration-300 hover:border-brand-green/50 hover:text-brand-green"
+                >
+                  <ShoppingBag className="h-4 w-4" />
+                  Ir a la tienda
+                </Link>
                 <a
                   href="#galeria"
                   className="inline-flex h-13 items-center justify-center rounded-full glass px-8 text-sm font-semibold text-white transition-all duration-300 hover:border-brand-blue/50 hover:text-brand-blue"

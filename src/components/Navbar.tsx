@@ -1,20 +1,24 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, ShoppingCart, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import Logo from "./Logo";
+import { useCart } from "@/context/CartContext";
 import { cn } from "@/lib/utils";
 
 const links = [
-  { href: "#inicio", label: "Inicio" },
-  { href: "#servicios", label: "Servicios" },
-  { href: "#galeria", label: "Galería" },
-  { href: "#nosotros", label: "Nosotros" },
-  { href: "#contacto", label: "Contacto" },
+  { href: "#inicio", label: "Inicio", route: false },
+  { href: "#servicios", label: "Servicios", route: false },
+  { href: "#galeria", label: "Galería", route: false },
+  { href: "#nosotros", label: "Nosotros", route: false },
+  { href: "/tienda", label: "Tienda", route: true },
+  { href: "#contacto", label: "Contacto", route: false },
 ];
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const { count, openCart } = useCart();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -37,25 +41,48 @@ export default function Navbar() {
           <Logo theme="dark" className="h-8" />
         </a>
 
-        <ul className="hidden items-center gap-9 md:flex">
+        <ul className="hidden items-center gap-8 md:flex">
           {links.map((link) => (
             <li key={link.href}>
-              <a
-                href={link.href}
-                className="text-sm font-medium text-zinc-400 transition-colors duration-300 hover:text-white"
-              >
-                {link.label}
-              </a>
+              {link.route ? (
+                <Link
+                  to={link.href}
+                  className="text-sm font-medium text-zinc-400 transition-colors duration-300 hover:text-white"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <a
+                  href={link.href}
+                  className="text-sm font-medium text-zinc-400 transition-colors duration-300 hover:text-white"
+                >
+                  {link.label}
+                </a>
+              )}
             </li>
           ))}
         </ul>
 
-        <a
-          href="#contacto"
-          className="hidden rounded-full bg-brand-blue px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-blue/25 transition-all duration-300 hover:bg-white hover:text-brand-black md:inline-flex"
-        >
-          Pedir Presupuesto
-        </a>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={openCart}
+            aria-label="Abrir carrito"
+            className="relative grid h-11 w-11 place-items-center rounded-full glass text-white transition-colors hover:border-brand-blue/50 hover:text-brand-blue"
+          >
+            <ShoppingCart className="h-5 w-5" />
+            {count > 0 && (
+              <span className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full bg-brand-blue px-1 text-[10px] font-bold text-white">
+                {count}
+              </span>
+            )}
+          </button>
+          <a
+            href="#contacto"
+            className="hidden rounded-full bg-brand-blue px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-blue/25 transition-all duration-300 hover:bg-white hover:text-brand-black lg:inline-flex"
+          >
+            Pedir Presupuesto
+          </a>
+        </div>
 
         <button
           onClick={() => setOpen(!open)}
@@ -78,13 +105,23 @@ export default function Navbar() {
             <ul className="flex flex-col px-6 py-4">
               {links.map((link) => (
                 <li key={link.href}>
-                  <a
-                    href={link.href}
-                    onClick={() => setOpen(false)}
-                    className="block py-3 text-sm font-medium text-zinc-300 transition-colors hover:text-white"
-                  >
-                    {link.label}
-                  </a>
+                  {link.route ? (
+                    <Link
+                      to={link.href}
+                      onClick={() => setOpen(false)}
+                      className="block py-3 text-sm font-medium text-zinc-300 transition-colors hover:text-white"
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <a
+                      href={link.href}
+                      onClick={() => setOpen(false)}
+                      className="block py-3 text-sm font-medium text-zinc-300 transition-colors hover:text-white"
+                    >
+                      {link.label}
+                    </a>
+                  )}
                 </li>
               ))}
               <li className="pt-3 pb-2">

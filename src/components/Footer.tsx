@@ -1,14 +1,16 @@
 import { Mail } from "lucide-react";
 import { FaInstagram, FaWhatsapp } from "react-icons/fa6";
+import { Link } from "react-router-dom";
 import Logo from "./Logo";
 import { CONTACT_EMAIL, INSTAGRAM_URL, WHATSAPP_URL } from "@/lib/utils";
 
 const links = [
-  { href: "#inicio", label: "Inicio" },
-  { href: "#servicios", label: "Servicios" },
-  { href: "#galeria", label: "Galería" },
-  { href: "#nosotros", label: "Nosotros" },
-  { href: "#contacto", label: "Contacto" },
+  { href: "#inicio", label: "Inicio", route: false },
+  { href: "#servicios", label: "Servicios", route: false },
+  { href: "#galeria", label: "Galería", route: false },
+  { href: "#nosotros", label: "Nosotros", route: false },
+  { href: "/tienda", label: "Tienda", route: true },
+  { href: "#contacto", label: "Contacto", route: false },
 ];
 
 const socials = [
@@ -50,12 +52,21 @@ export default function Footer() {
             <ul className="mt-5 space-y-3">
               {links.map((link) => (
                 <li key={link.href}>
-                  <a
-                    href={link.href}
-                    className="text-sm text-zinc-400 transition-colors hover:text-white"
-                  >
-                    {link.label}
-                  </a>
+                  {link.route ? (
+                    <Link
+                      to={link.href}
+                      className="text-sm text-zinc-400 transition-colors hover:text-white"
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <a
+                      href={link.href}
+                      className="text-sm text-zinc-400 transition-colors hover:text-white"
+                    >
+                      {link.label}
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>
