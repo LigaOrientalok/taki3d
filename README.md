@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Taki3D
 
-## Getting Started
+Landing page para un estudio de figuras 3D personalizadas: coleccionables, esculturas y piezas hechas a medida.
 
-First, run the development server:
+**Sitio en producción:** https://taki3d.vercel.app
+
+## Secciones
+
+- **Inicio** — presentación del estudio con visual 3D animado
+- **Sobre mí** — historia y proceso de trabajo
+- **Servicios** — modelado, impresión, pintura, diseño personalizado, coleccionables y envíos
+- **Productos** — catálogo de figuras con ilustraciones de ejemplo
+- **Contacto** — formulario de cotización y datos de contacto
+
+## Stack
+
+- [Next.js](https://nextjs.org) 16 (App Router)
+- [Tailwind CSS](https://tailwindcss.com) v4
+- [TypeScript](https://www.typescriptlang.org)
+- Deploy en [Vercel](https://vercel.com)
+
+## Desarrollo
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install      # instalar dependencias
+npm run dev      # servidor de desarrollo en http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Comandos útiles
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run lint     # revisar el código con ESLint
+npm run build    # build de producción
+npm run start    # servir el build de producción
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Despliegue
 
-## Learn More
+El proyecto está conectado a Vercel. Cada `git push` a la rama `main` lanza un deploy automático.
 
-To learn more about Next.js, take a look at the following resources:
+## Personalización
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Figuras de ejemplo: `components/ProductFigure.tsx`
+- Catálogo de productos: `components/Products.tsx`
+- Datos de contacto: `components/Contact.tsx`
