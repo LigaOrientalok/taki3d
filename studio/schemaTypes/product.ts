@@ -37,6 +37,7 @@ export const product = defineType({
       options: {
         list: [
           { title: "Figuras", value: "Figuras" },
+          { title: "Anime", value: "Anime" },
           { title: "Llaveros", value: "Llaveros" },
           { title: "Gamer", value: "Gamer" },
           { title: "Hogar", value: "Hogar" },

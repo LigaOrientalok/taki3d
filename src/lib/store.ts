@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Cake,
+  Clapperboard,
   Gamepad2,
   Heart,
   Home,
@@ -37,6 +38,7 @@ export interface Category {
 
 export const CATEGORIES: Category[] = [
   { name: "Figuras", icon: Sparkles },
+  { name: "Anime", icon: Clapperboard },
   { name: "Llaveros", icon: KeyRound },
   { name: "Gamer", icon: Gamepad2 },
   { name: "Hogar", icon: Home },
@@ -47,6 +49,20 @@ export const CATEGORIES: Category[] = [
 ];
 
 export const MOCK_PRODUCTS: Product[] = [
+  {
+    id: "figura-anime-mock",
+    slug: "figura-anime-generica",
+    title: "Figura anime chibi",
+    category: "Anime",
+    description:
+      "Figura estilo chibi de tu personaje favorito, hecha a pedido. Tamaño 15 cm con base incluida. Elegí tu personaje y lo diseñamos.",
+    price: 1800,
+    stockMode: "pedido",
+    quantity: 0,
+    images: [],
+    placeholder: { gradient: "from-brand-blue/50 to-brand-black", icon: Clapperboard },
+    featured: true,
+  },
   {
     id: "figura-mascota",
     slug: "figura-mascota",
