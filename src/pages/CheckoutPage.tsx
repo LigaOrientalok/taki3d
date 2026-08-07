@@ -1,6 +1,13 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { ArrowLeft, Check, MessageCircle, Package, Store } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  CreditCard,
+  MessageCircle,
+  Package,
+  Store,
+} from "lucide-react";
 import ProductImage from "@/components/ProductImage";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/lib/store";
@@ -27,17 +34,47 @@ const emptyForm: FormState = {
 };
 
 export default function CheckoutPage() {
-  const { items, subtotal, clearCart } = useCart();
+  const { items, clearCart } = useCart();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [placed, setPlaced] = useState(false);
-  const [orderNumber] = useState(
-    () => `TK-${Math.floor(100000 + Math.random() * 900000)}`,
-  );
+  const [mpSuccess, setMpSuccess] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
-  if (items.length === 0 && !placed) return <Navigate to="/tienda" replace />;
+  const returnStatus = useMemo(
+    () => new URLSearchParams(window.location.search).get("status"),
+    [],
+  );
+  const [orderNumber] = useState(
+    () =>
+      new URLSearchParams(window.location.search).get("order") ??
+      `TK-${Math.floor(100000 + Math.random() * 900000)}`,
+  );
+  const [cartSnapshot] = useState(() => items);
+
+  useEffect(() => {
+    if (returnStatus === "success") {
+      setMpSuccess(true);
+      setPlaced(true);
+      clearCart();
+    } else if (returnStatus === "pending") {
+      setPaymentError(
+        "Tu pago quedó pendiente en MercadoPago. Si ya se acreditó, escribinos por WhatsApp para confirmar el pedido.",
+      );
+    }
+  }, [returnStatus, clearCart]);
+
+  if (items.length === 0 && !placed && returnStatus !== "success")
+    return <Navigate to="/tienda" replace />;
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const snapshotSubtotal = cartSnapshot.reduce(
+    (sum, item) => sum + item.product.price * item.quantity,
+    0,
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,15 +82,58 @@ export default function CheckoutPage() {
     clearCart();
   };
 
+  const handleMpPay = async () => {
+    setPaymentError(null);
+    const formEl = formRef.current;
+    if (formEl && !formEl.checkValidity()) {
+      formEl.requestSubmit();
+      return;
+    }
+    setPaying(true);
+    try {
+      const origin = window.location.origin;
+      const res = await fetch("/api/create-preference", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: cartSnapshot.map((item) => ({
+            id: item.product.id,
+            title: item.product.title,
+            quantity: item.quantity,
+            unit_price: item.product.price,
+          })),
+          payer: { name: form.name, email: form.email, phone: form.phone },
+          externalReference: orderNumber,
+          delivery: form.delivery,
+          backUrls: {
+            success: `${origin}/checkout?status=success&order=${orderNumber}`,
+            pending: `${origin}/checkout?status=pending&order=${orderNumber}`,
+            failure: `${origin}/checkout?status=failure&order=${orderNumber}`,
+          },
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.initPoint) {
+        throw new Error(data?.error ?? "Error");
+      }
+      window.location.href = data.initPoint;
+    } catch {
+      setPaymentError(
+        "No se pudo conectar con MercadoPago. Probá de nuevo o coordiná el pago por WhatsApp.",
+      );
+      setPaying(false);
+    }
+  };
+
   const orderMessage = whatsappLink(
     `Hola TAKI3D! Soy ${form.name || "..."}. Quiero confirmar mi pedido ${orderNumber}:\n` +
-      items
+      cartSnapshot
         .map(
           (item) =>
             `• ${item.product.title} x${item.quantity} = ${formatPrice(item.product.price * item.quantity)}`,
         )
         .join("\n") +
-      `\nTotal: ${formatPrice(subtotal)}` +
+      `\nTotal: ${formatPrice(snapshotSubtotal)}` +
       `\nEntrega: ${form.delivery === "retiro" ? "Retiro en el taller" : "Envío a domicilio"}` +
       (form.delivery === "envio" && form.address ? ` (${form.address})` : ""),
   );
@@ -66,16 +146,31 @@ export default function CheckoutPage() {
             <Check className="h-8 w-8" />
           </div>
           <h1 className="mt-6 font-display text-3xl font-bold text-white">
-            ¡Pedido registrado!
+            {mpSuccess ? "¡Pago recibido!" : "¡Pedido registrado!"}
           </h1>
           <p className="mt-2 text-zinc-400">
-            Tu número de pedido es{" "}
-            <span className="font-semibold text-brand-blue">{orderNumber}</span>.
-            Ya reservamos tus productos.
+            {mpSuccess ? (
+              <>
+                Gracias por tu compra. Tu número de pedido es{" "}
+                <span className="font-semibold text-brand-blue">
+                  {orderNumber}
+                </span>{" "}
+                y el pago por MercadoPago fue acreditado.
+              </>
+            ) : (
+              <>
+                Tu número de pedido es{" "}
+                <span className="font-semibold text-brand-blue">
+                  {orderNumber}
+                </span>
+                . Ya reservamos tus productos.
+              </>
+            )}
           </p>
           <p className="mt-4 text-sm text-zinc-500">
-            Para coordinar el pago y la entrega, escribinos por WhatsApp o
-            retirá en Justo Alonso González 3283, Montevideo.
+            {mpSuccess
+              ? "Para coordinar la entrega, escribinos por WhatsApp o retirá en Justo Alonso González 3283, Montevideo."
+              : "Para coordinar el pago y la entrega, escribinos por WhatsApp o retirá en Justo Alonso González 3283, Montevideo."}
           </p>
           <div className="mt-8 flex flex-col gap-3">
             <a
@@ -111,7 +206,11 @@ export default function CheckoutPage() {
         </Link>
         <h1 className="mt-6 font-display text-4xl font-bold text-white">Checkout</h1>
 
-        <form onSubmit={handleSubmit} className="mt-10 grid gap-10 lg:grid-cols-5">
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className="mt-10 grid gap-10 lg:grid-cols-5"
+        >
           <div className="space-y-6 lg:col-span-3">
             <div className="rounded-3xl border border-white/8 bg-white/[0.03] p-7">
               <h2 className="font-display text-lg font-semibold text-white">
@@ -238,7 +337,7 @@ export default function CheckoutPage() {
             <div className="sticky top-28 rounded-3xl border border-white/8 bg-white/[0.03] p-7">
               <h2 className="font-display text-lg font-semibold text-white">Tu pedido</h2>
               <div className="mt-5 space-y-4">
-                {items.map((item) => (
+                {cartSnapshot.map((item) => (
                   <div key={item.product.id} className="flex items-center gap-3">
                     <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg">
                       <ProductImage product={item.product} iconSize="h-5 w-5" />
@@ -258,7 +357,7 @@ export default function CheckoutPage() {
               <div className="mt-6 space-y-2 border-t border-white/8 pt-5">
                 <div className="flex justify-between text-sm text-zinc-400">
                   <span>Subtotal</span>
-                  <span className="font-medium text-white">{formatPrice(subtotal)}</span>
+                  <span className="font-medium text-white">{formatPrice(snapshotSubtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-zinc-400">
                   <span>Envío</span>
@@ -268,18 +367,31 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between pt-2 text-base font-semibold">
                   <span className="text-white">Total</span>
-                  <span className="font-display text-white">{formatPrice(subtotal)}</span>
+                  <span className="font-display text-white">{formatPrice(snapshotSubtotal)}</span>
                 </div>
               </div>
               <p className="mt-4 text-xs text-zinc-500">
-                Al confirmar, te damos tu número de pedido y coordinamos el pago
-                por WhatsApp (efectivo, transferencia o MercadoPago) o el retiro.
+                Pagá online con MercadoPago (tarjeta o dinero en cuenta), o
+                confirmá el pedido y coordiná el pago por WhatsApp (efectivo o
+                transferencia).
               </p>
               <button
-                type="submit"
-                className="mt-6 w-full rounded-full bg-brand-blue py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-blue/25 transition-all duration-300 hover:bg-white hover:text-brand-black"
+                type="button"
+                onClick={handleMpPay}
+                disabled={paying}
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-blue py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-blue/25 transition-all duration-300 hover:bg-white hover:text-brand-black disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Confirmar pedido
+                <CreditCard className="h-4 w-4" />
+                {paying ? "Redirigiendo a MercadoPago…" : "Pagar con MercadoPago"}
+              </button>
+              {paymentError && (
+                <p className="mt-3 text-xs text-amber-400">{paymentError}</p>
+              )}
+              <button
+                type="submit"
+                className="mt-3 w-full rounded-full border border-white/15 bg-white/[0.04] py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:border-white/40"
+              >
+                Confirmar pedido por WhatsApp
               </button>
             </div>
           </div>
