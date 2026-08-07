@@ -13,7 +13,7 @@ const contactInfo = [
   {
     icon: Phone,
     label: "WhatsApp",
-    value: "099 123 456",
+    value: "097 844 136",
     href: WHATSAPP_URL,
   },
   {
@@ -25,8 +25,8 @@ const contactInfo = [
   {
     icon: MapPin,
     label: "Ubicación",
-    value: "Montevideo, Uruguay",
-    href: "https://maps.google.com/?q=Montevideo,Uruguay",
+    value: "Justo Alonso González 3283, Montevideo",
+    href: "https://maps.google.com/?q=Justo+Alonso+Gonzalez+3283,+Montevideo,+Uruguay",
   },
 ];
 
@@ -78,7 +78,7 @@ export default function Contact() {
             <div className="overflow-hidden rounded-2xl border border-white/8">
               <iframe
                 title="Ubicación de TAKI3D en Montevideo"
-                src="https://maps.google.com/maps?q=Montevideo%2C%20Uruguay&t=&z=12&ie=UTF8&iwloc=&output=embed"
+                src="https://maps.google.com/maps?q=Justo%20Alonso%20Gonz%C3%A1lez%203283%2C%20Montevideo%2C%20Uruguay&t=&z=16&ie=UTF8&iwloc=&output=embed"
                 width="100%"
                 height="220"
                 style={{ border: 0 }}

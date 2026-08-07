@@ -106,7 +106,7 @@ export default function Footer() {
           <p className="text-xs text-zinc-600">
             © {new Date().getFullYear()} TAKI3D · Todos los derechos reservados.
           </p>
-          <p className="text-xs text-zinc-600">Montevideo, Uruguay</p>
+          <p className="text-xs text-zinc-600">Justo Alonso González 3283, Montevideo · Uruguay</p>
         </div>
       </div>
     </footer>

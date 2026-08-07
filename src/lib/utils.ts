@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const WHATSAPP_NUMBER = "59893123456";
+export const WHATSAPP_NUMBER = "59897844136";
 export const CONTACT_EMAIL = "taki3d.uy@gmail.com";
 export const INSTAGRAM_USER = "taki.3d.uy";
 export const INSTAGRAM_URL = `https://www.instagram.com/${INSTAGRAM_USER}`;
