@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="48" viewBox="0 0 180 48" role="img" aria-label="TAKI3D">
+  <g transform="translate(26,24) scale(1.05)">
+    <path d="M 0,-28 L 24,-14 L 0,0 L -24,-14 Z" fill="#1b1c20"/>
+    <path d="M 24,-14 L 0,0 L 0,28 L 24,14 Z" fill="#0e0e10"/>
+    <path d="M -24,-14 L 0,0 L 0,28 L -24,14 Z" fill="#3a3b43"/>
+  </g>
+  <text x="58" y="32" font-family="Space Grotesk, Inter, Arial, sans-serif" font-weight="700" font-size="22" letter-spacing="1" fill="#0E0E10">TAKI<tspan fill="#28A9FF">3D</tspan></text>
+</svg>

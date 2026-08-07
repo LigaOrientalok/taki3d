@@ -1,45 +1,53 @@
-# Taki3D
+# TAKI3D — Impresión 3D Profesional
 
-Landing page para un estudio de figuras 3D personalizadas: coleccionables, esculturas y piezas hechas a medida.
-
-**Sitio en producción:** https://taki3d.vercel.app
-
-## Secciones
-
-- **Inicio** — presentación del estudio con visual 3D animado
-- **Sobre mí** — historia y proceso de trabajo
-- **Servicios** — modelado, impresión, pintura, diseño personalizado, coleccionables y envíos
-- **Productos** — catálogo de figuras con ilustraciones de ejemplo
-- **Contacto** — formulario de cotización y datos de contacto
+Landing page premium para TAKI3D, un servicio de impresión 3D en Uruguay.
+Slogan: **"Transformamos tus ideas en realidad."**
 
 ## Stack
 
-- [Next.js](https://nextjs.org) 16 (App Router)
-- [Tailwind CSS](https://tailwindcss.com) v4
-- [TypeScript](https://www.typescriptlang.org)
-- Deploy en [Vercel](https://vercel.com)
+- [Vite 8](https://vitejs.dev) + [React 19](https://react.dev) + TypeScript
+- [Tailwind CSS v4](https://tailwindcss.com) (tokens en `src/index.css` vía `@theme`)
+- [Framer Motion 13](https://motion.dev) (animaciones y scroll)
+- [Embla Carousel](https://www.embla-carousel.com) (testimonios)
+- [Lenis](https://lenis.darkroom.engineering) (scroll suave)
+- [React Router 7](https://reactrouter.com)
+- shadcn-style UI kit (`src/components/ui`)
 
-## Desarrollo
+## Comandos
 
 ```bash
 npm install      # instalar dependencias
-npm run dev      # servidor de desarrollo en http://localhost:3000
+npm run dev      # servidor de desarrollo
+npm run build    # typecheck (tsc) + build de producción en dist/
+npm run preview  # previsualizar el build
+npm run lint     # typecheck (tsc --noEmit)
 ```
 
-## Comandos útiles
+## Estructura
 
-```bash
-npm run lint     # revisar el código con ESLint
-npm run build    # build de producción
-npm run start    # servir el build de producción
+```
+src/
+├── components/      # secciones y componentes reutilizables
+│   ├── ui/          # button, input, textarea, badge
+│   └── ...
+├── hooks/           # useLenis, useCounter, useScrollToTop
+├── layout/          # Layout (Loader, cursor, navbar, footer, outlet)
+├── pages/           # Home, NotFound
+├── lib/             # utils y constantes de contacto
+└── index.css        # tema y utilidades
 ```
 
-## Despliegue
+## Datos de contacto
 
-El proyecto está conectado a Vercel. Cada `git push` a la rama `main` lanza un deploy automático.
+Las constantes de contacto están en `src/lib/utils.ts`
+(WhatsApp, email e Instagram). Actualizá el número real de WhatsApp ahí.
 
-## Personalización
+## Deploy
 
-- Figuras de ejemplo: `components/ProductFigure.tsx`
-- Catálogo de productos: `components/Products.tsx`
-- Datos de contacto: `components/Contact.tsx`
+Configurado para [Vercel](https://vercel.com) (`vercel.json`):
+build `npm run build`, output `dist`, SPA rewrites.
+
+## SEO
+
+`index.html` incluye meta title/description, Open Graph, Twitter Cards,
+Schema.org y favicon. Se actualizan en `index.html`.

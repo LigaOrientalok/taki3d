@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="56" height="60" viewBox="-28 -30 56 60" role="img" aria-label="Isotipo TAKI3D">
+  <path d="M 0,-28 L 24,-14 L 0,0 L -24,-14 Z" fill="#7cc4ff"/>
+  <path d="M 24,-14 L 0,0 L 0,28 L 24,14 Z" fill="#28A9FF"/>
+  <path d="M -24,-14 L 0,0 L 0,28 L -24,14 Z" fill="#0f6cb3"/>
+  <path d="M 0,-28 L 24,-14 L 0,0 L -24,-14 Z" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>
+</svg>
