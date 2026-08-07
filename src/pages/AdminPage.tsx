@@ -36,7 +36,10 @@ export default function AdminPage() {
   const [key, setKey] = useState(() => sessionStorage.getItem("taki3d-admin-key") ?? "");
   const [authed, setAuthed] = useState(() => Boolean(sessionStorage.getItem("taki3d-admin-key")));
   const [orders, setOrders] = useState<Order[]>([]);
-  const [stock, setStock] = useState<Record<string, number>>({});
+  const [products, setProducts] = useState<
+    Array<{ id: string; title: string; stock_mode: string; quantity: number }>
+  >([]);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -57,7 +60,7 @@ export default function AdminPage() {
           return;
         }
         setOrders(data.orders ?? []);
-        setStock(data.stock ?? {});
+        setProducts(data.products ?? []);
         setError(null);
       } finally {
         setLoading(false);
@@ -89,8 +92,46 @@ export default function AdminPage() {
         body: JSON.stringify({ id, action: "cancel" }),
       });
       if (res.ok) load(token);
+      else {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "No se pudo cancelar el pedido");
+      }
     } catch {
       setError("No se pudo cancelar el pedido");
+    }
+  };
+
+  const syncCatalog = async () => {
+    const token = sessionStorage.getItem("taki3d-admin-key") ?? "";
+    setSyncing(true);
+    try {
+      const res = await fetch(`/api/orders?key=${encodeURIComponent(token)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync" }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) setError(data?.error ?? "No se pudo sincronizar");
+      else load(token);
+    } catch {
+      setError("No se pudo sincronizar el catálogo");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const updateStock = async (productId: string, quantity: number) => {
+    const token = sessionStorage.getItem("taki3d-admin-key") ?? "";
+    try {
+      const res = await fetch(`/api/orders?key=${encodeURIComponent(token)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set-stock", productId, quantity }),
+      });
+      if (res.ok) load(token);
+      else setError("No se pudo actualizar el stock");
+    } catch {
+      setError("No se pudo actualizar el stock");
     }
   };
 
@@ -136,13 +177,18 @@ export default function AdminPage() {
           <div>
             <h1 className="font-display text-3xl font-bold text-white">Pedidos</h1>
             <p className="mt-1 text-sm text-zinc-500">
-              {orders.length} pedido{orders.length === 1 ? "" : "s"} ·{" "}
-              {Object.keys(stock).length > 0 && (
-                <span>Stock de productos bajo pedido actualizado</span>
-              )}
+              {orders.length} pedido{orders.length === 1 ? "" : "s"}
             </p>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={syncCatalog}
+              disabled={syncing}
+              className="inline-flex items-center gap-2 rounded-full glass px-4 py-2.5 text-sm font-medium text-white transition-colors hover:border-brand-blue/50 hover:text-brand-blue disabled:opacity-60"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              Sincronizar catálogo
+            </button>
             <button
               onClick={() => load(sessionStorage.getItem("taki3d-admin-key") ?? "")}
               className="inline-flex items-center gap-2 rounded-full glass px-4 py-2.5 text-sm font-medium text-white transition-colors hover:border-brand-blue/50 hover:text-brand-blue"
@@ -244,22 +290,60 @@ export default function AdminPage() {
           )}
         </div>
 
-        {Object.keys(stock).length > 0 && (
+        {products.filter((p) => p.stock_mode === "stock").length > 0 && (
           <div className="mt-8 rounded-3xl border border-white/8 bg-white/[0.03] p-6">
-            <h2 className="font-display text-lg font-semibold text-white">Stock actual</h2>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {Object.entries(stock).map(([id, qty]) => (
-                <span key={id} className="rounded-full glass px-4 py-1.5 text-xs text-zinc-300">
-                  {id.slice(0, 10)}:{" "}
-                  <span className={qty > 0 ? "text-brand-green" : "text-red-400"}>
-                    {qty === null ? "—" : qty}
-                  </span>
-                </span>
-              ))}
+            <h2 className="font-display text-lg font-semibold text-white">Stock</h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Editá el stock disponible. "Sincronizar catálogo" agrega productos nuevos desde
+              Sanity sin pisar las reservas hechas acá.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {products
+                .filter((p) => p.stock_mode === "stock")
+                .map((p) => (
+                  <StockRow key={p.id} product={p} onChange={(q) => updateStock(p.id, q)} />
+                ))}
             </div>
           </div>
         )}
       </div>
     </section>
+  );
+}
+
+function StockRow({
+  product,
+  onChange,
+}: {
+  product: { title: string; quantity: number };
+  onChange: (quantity: number) => void;
+}) {
+  const [value, setValue] = useState(String(product.quantity));
+  const dirty = Number(value) !== product.quantity;
+  const valid = Number.isInteger(Number(value)) && Number(value) >= 0;
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-white">{product.title}</p>
+        <p className="text-xs text-zinc-500">Stock actual: {product.quantity}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <input
+          type="number"
+          min={0}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-16 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center text-sm text-white focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/30 focus:outline-none"
+        />
+        <button
+          onClick={() => onChange(Number(value))}
+          disabled={!dirty || !valid}
+          className="rounded-lg bg-brand-blue px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white hover:text-brand-black disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Guardar
+        </button>
+      </div>
+    </div>
   );
 }

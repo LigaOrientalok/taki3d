@@ -1,8 +1,8 @@
 const MP_TOKEN = process.env.MP_ACCESS_TOKEN;
 const SANITY_PROJECT = process.env.VITE_SANITY_PROJECT_ID || "cwozgtvj";
 const SANITY_DATASET = process.env.VITE_SANITY_DATASET || "production";
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 const json = (res, status, obj) => res.status(status).json(obj);
 
@@ -12,47 +12,49 @@ function parseBody(req) {
   return {};
 }
 
-function redisBase() {
-  if (!UPSTASH_URL || !UPSTASH_TOKEN) throw new Error("UPSTASH_MISSING");
-  return UPSTASH_URL;
+function supabaseReady() {
+  return Boolean(SUPABASE_URL && SUPABASE_SERVICE_KEY);
 }
 
-async function redisCommand(...args) {
-  const path = args.map((a) => encodeURIComponent(String(a))).join("/");
-  const res = await fetch(`${redisBase()}/${path}`, {
-    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
+async function rpc(name, params) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`Redis error ${res.status}`);
-  return data.result;
+  if (!res.ok) {
+    const err = new Error(data?.message || `Supabase ${res.status}`);
+    err.code = data?.code || res.status;
+    err.details = data?.details || "";
+    throw err;
+  }
+  return data;
 }
 
-const RESERVE_SCRIPT =
-  "local q=tonumber(ARGV[1]);local fallback=tonumber(ARGV[2]);local n=tonumber(redis.call('GET',KEYS[1]));if not n then n=fallback end;if n<q then return -1 end;redis.call('DECRBY',KEYS[1],q);return n-q";
-
-async function reserveStock(id, qty, fallback) {
-  const path = [
-    encodeURIComponent(RESERVE_SCRIPT),
-    "1",
-    encodeURIComponent(`stock:${id}`),
-    String(qty),
-    String(fallback),
-  ].join("/");
-  const res = await fetch(`${redisBase()}/eval/${path}`, {
-    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error("Redis eval error");
-  return Number(data.result);
-}
-
-async function releaseStock(reserved) {
-  for (const r of reserved) {
-    try {
-      await redisCommand("incrby", `stock:${r.id}`, r.qty);
-    } catch {
-      /* best effort */
-    }
+async function patchOrder(id, fields) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/orders?id=eq.${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(fields),
+    },
+  );
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const err = new Error(data?.message || `Supabase ${res.status}`);
+    err.code = data?.code || res.status;
+    throw err;
   }
 }
 
@@ -90,129 +92,133 @@ export default async function handler(req, res) {
   } catch {
     return json(res, 502, { error: "No se pudo validar el catálogo" });
   }
-
   const byId = new Map(catalog.map((p) => [p._id, p]));
 
-  for (const item of items) {
+  const normalized = items.map((item) => {
     const prod = byId.get(item.id);
-    if (!prod) return json(res, 400, { error: `Producto inválido: ${item.title}` });
+    if (!prod) throw new Error(`Producto inválido: ${item.title}`);
     const qty = Math.floor(Number(item.quantity)) || 0;
-    if (qty <= 0 || qty > 99) return json(res, 400, { error: "Cantidad inválida" });
+    if (qty <= 0 || qty > 99) throw new Error("Cantidad inválida");
     if (Number(item.unit_price) !== Number(prod.price)) {
-      return json(res, 400, { error: `El precio de "${prod.title}" cambió, actualizá tu carrito` });
+      throw new Error(`El precio de "${prod.title}" cambió, actualizá tu carrito`);
     }
-    if (prod.stockMode === "stock" && qty > Number(prod.quantity)) {
-      return json(res, 409, { error: `Stock insuficiente de "${prod.title}"` });
-    }
-  }
+    return {
+      id: prod._id,
+      title: prod.title,
+      quantity: qty,
+      unit_price: Number(prod.price),
+      stockMode: prod.stockMode === "stock" ? "stock" : "pedido",
+    };
+  });
 
   const orderId = `TK-${Date.now().toString(36).toUpperCase()}-${Math.random()
     .toString(36)
     .slice(2, 6)
     .toUpperCase()}`;
-  const upstashReady = Boolean(UPSTASH_URL && UPSTASH_TOKEN);
-  const reserved = [];
-
-  if (upstashReady) {
-    try {
-      for (const item of items) {
-        const prod = byId.get(item.id);
-        if (prod.stockMode !== "stock") continue;
-        const fallback = Number(prod.quantity) || 0;
-        const left = await reserveStock(item.id, item.quantity, fallback);
-        if (left < 0) {
-          await releaseStock(reserved);
-          return json(res, 409, { error: `No queda stock suficiente de "${prod.title}"` });
-        }
-        reserved.push({ id: item.id, qty: item.quantity });
-      }
-    } catch {
-      return json(res, 503, { error: "Servicio de stock no disponible, probá de nuevo" });
-    }
-  }
-
-  const total = items.reduce(
-    (sum, i) => sum + Number(i.unit_price) * Number(i.quantity),
-    0,
-  );
-  const order = {
-    id: orderId,
-    items: items.map((i) => ({
-      id: i.id,
-      title: i.title,
-      quantity: i.quantity,
-      unit_price: Number(i.unit_price),
-      stockMode: (byId.get(i.id) || {}).stockMode || "pedido",
-    })),
-    payer: {
-      name: String(payer?.name ?? ""),
-      email: String(payer?.email ?? ""),
-      phone: String(payer?.phone ?? ""),
-    },
+  const method = paymentMethod === "whatsapp" ? "whatsapp" : "mp";
+  const payload = {
+    order_id: orderId,
+    items: normalized,
+    payer_name: String(payer?.name ?? ""),
+    payer_email: String(payer?.email ?? ""),
+    payer_phone: String(payer?.phone ?? ""),
     delivery: String(delivery ?? "retiro"),
     address: String(address ?? ""),
     notes: String(notes ?? ""),
-    total,
-    paymentMethod: paymentMethod === "whatsapp" ? "whatsapp" : "mp",
-    status: "pending",
-    createdAt: new Date().toISOString(),
-    paidAt: null,
+    payment_method: method,
+    mp_preference_id: null,
   };
 
   let initPoint = null;
 
-  if (order.paymentMethod === "mp") {
-    if (!MP_TOKEN) {
-      if (upstashReady) await releaseStock(reserved);
-      return json(res, 500, { error: "MercadoPago no configurado" });
+  // WhatsApp: sin MercadoPago, solo registrar el pedido y reservar stock.
+  if (method === "whatsapp") {
+    if (!supabaseReady()) {
+      return json(res, 200, { initPoint: null, orderId });
     }
-    const preference = {
-      items: items.map((i) => ({
-        id: String(i.id),
-        title: String(i.title),
-        quantity: Number(i.quantity),
-        unit_price: Number(i.unit_price),
-        currency_id: "UYU",
-      })),
-      payer: {
-        name: String(payer?.name ?? ""),
-        email: String(payer?.email ?? ""),
-        phone: { number: String(payer?.phone ?? "") },
-      },
-      external_reference: orderId,
-      statement_descriptor: "TAKI3D",
-      auto_return: "approved",
-      back_urls: backUrls ?? {},
-      metadata: { delivery: String(delivery ?? ""), source: "taki3d-web" },
-    };
     try {
-      const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${MP_TOKEN}` },
-        body: JSON.stringify(preference),
-      });
-      const data = await mpRes.json().catch(() => ({}));
-      if (!mpRes.ok || !data.init_point) {
-        if (upstashReady) await releaseStock(reserved);
-        return json(res, 502, {
-          error: typeof data.message === "string" ? data.message : "Error al crear el pago",
-        });
+      await rpc("place_order", { p_payload: payload });
+    } catch (err) {
+      if (err.message && err.message.startsWith("STOCK_INSUFICIENTE")) {
+        return json(res, 409, { error: "No queda stock suficiente de uno de los productos" });
       }
-      initPoint = data.init_point;
-      order.mpPreferenceId = data.id;
-    } catch {
-      if (upstashReady) await releaseStock(reserved);
-      return json(res, 502, { error: "Error al conectar con MercadoPago" });
+      return json(res, 503, { error: "No se pudo registrar el pedido, probá de nuevo" });
+    }
+    return json(res, 200, { initPoint: null, orderId });
+  }
+
+  // MercadoPago: reservar primero, luego crear la preferencia.
+  if (!MP_TOKEN) return json(res, 500, { error: "MercadoPago no configurado" });
+
+  if (supabaseReady()) {
+    try {
+      await rpc("place_order", { p_payload: payload });
+    } catch (err) {
+      if (err.message && err.message.startsWith("STOCK_INSUFICIENTE")) {
+        return json(res, 409, { error: "No queda stock suficiente de uno de los productos" });
+      }
+      return json(res, 503, { error: "No se pudo registrar el pedido, probá de nuevo" });
     }
   }
 
-  if (upstashReady) {
+  const preference = {
+    items: normalized.map((i) => ({
+      id: String(i.id),
+      title: String(i.title),
+      quantity: i.quantity,
+      unit_price: i.unit_price,
+      currency_id: "UYU",
+    })),
+    payer: {
+      name: String(payer?.name ?? ""),
+      email: String(payer?.email ?? ""),
+      phone: { number: String(payer?.phone ?? "") },
+    },
+    external_reference: orderId,
+    statement_descriptor: "TAKI3D",
+    auto_return: "approved",
+    back_urls: backUrls ?? {},
+    metadata: { delivery: String(delivery ?? ""), source: "taki3d-web" },
+  };
+
+  let preferenceId = null;
+  try {
+    const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${MP_TOKEN}` },
+      body: JSON.stringify(preference),
+    });
+    const data = await mpRes.json().catch(() => ({}));
+    if (!mpRes.ok || !data.init_point) {
+      if (supabaseReady()) {
+        try {
+          await rpc("cancel_order", { p_order_id: orderId, p_status: "cancelled" });
+        } catch {
+          /* best effort */
+        }
+      }
+      return json(res, 502, {
+        error: typeof data.message === "string" ? data.message : "Error al crear el pago",
+      });
+    }
+    initPoint = data.init_point;
+    preferenceId = data.id;
+  } catch {
+    if (supabaseReady()) {
+      try {
+        await rpc("cancel_order", { p_order_id: orderId, p_status: "cancelled" });
+      } catch {
+        /* best effort */
+      }
+    }
+    return json(res, 502, { error: "Error al conectar con MercadoPago" });
+  }
+
+  if (supabaseReady()) {
     try {
-      await redisCommand("set", `order:${orderId}`, JSON.stringify(order), "EX", "604800");
-      await redisCommand("zadd", "orders:all", String(Date.now()), orderId);
+      await patchOrder(orderId, { mp_preference_id: preferenceId });
     } catch {
-      if (order.paymentMethod === "whatsapp") await releaseStock(reserved);
-      return json(res, 503, { error: "No se pudo registrar el pedido, probá de nuevo" });
+      /* best effort: no bloquea el pago */
     }
   }
 

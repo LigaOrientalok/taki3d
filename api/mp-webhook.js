@@ -1,6 +1,6 @@
 const MP_TOKEN = process.env.MP_ACCESS_TOKEN;
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 function parseBody(req) {
   if (typeof req.body === "object" && req.body !== null) return req.body;
@@ -8,26 +8,27 @@ function parseBody(req) {
   return {};
 }
 
-async function redisCommand(...args) {
-  if (!UPSTASH_URL || !UPSTASH_TOKEN) throw new Error("UPSTASH_MISSING");
-  const path = args.map((a) => encodeURIComponent(String(a))).join("/");
-  const res = await fetch(`${UPSTASH_URL}/${path}`, {
-    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`Redis error ${res.status}`);
-  return data.result;
+function supabaseReady() {
+  return Boolean(SUPABASE_URL && SUPABASE_SERVICE_KEY);
 }
 
-async function releaseStock(order) {
-  for (const item of order.items || []) {
-    if (item.stockMode !== "stock") continue;
-    try {
-      await redisCommand("incrby", `stock:${item.id}`, item.quantity);
-    } catch {
-      /* best effort */
-    }
+async function rpc(name, params) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data?.message || `Supabase ${res.status}`);
+    err.code = data?.code || res.status;
+    throw err;
   }
+  return data;
 }
 
 export default async function handler(req, res) {
@@ -45,15 +46,9 @@ export default async function handler(req, res) {
   if (!paymentId) return res.status(200).json({ ok: true });
 
   let orderId = null;
-  try {
-    const ref = await redisCommand("get", `mp:${paymentId}`);
-    if (ref) orderId = ref;
-  } catch {
-    /* redis sin configurar */
-  }
-
   let status = null;
-  if (!orderId && MP_TOKEN) {
+
+  if (MP_TOKEN) {
     try {
       const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: { Authorization: `Bearer ${MP_TOKEN}` },
@@ -68,46 +63,19 @@ export default async function handler(req, res) {
     }
   }
 
-  if (!orderId) return res.status(200).json({ ok: true });
+  if (!orderId || !status) return res.status(200).json({ ok: true });
+  if (!supabaseReady()) return res.status(200).json({ ok: true });
 
   try {
-    await redisCommand("set", `mp:${paymentId}`, orderId, "EX", "604800");
-  } catch {
-    /* best effort */
-  }
-
-  let order = null;
-  try {
-    const raw = await redisCommand("get", `order:${orderId}`);
-    if (raw) order = JSON.parse(raw);
-  } catch {
-    /* best effort */
-  }
-  if (!order) return res.status(200).json({ ok: true });
-
-  const current = order.status || "pending";
-
-  if (status === "approved" && current === "pending") {
-    order.status = "paid";
-    order.paidAt = new Date().toISOString();
-    order.mpPaymentId = paymentId;
-    try {
-      await redisCommand("set", `order:${orderId}`, JSON.stringify(order), "EX", "604800");
-    } catch {
-      /* best effort */
+    if (status === "approved") {
+      await rpc("confirm_order", { p_order_id: orderId, p_payment_id: String(paymentId) });
+    } else if (status === "cancelled" || status === "rejected") {
+      await rpc("cancel_order", { p_order_id: orderId, p_status: "cancelled" });
+    } else if (status === "refunded") {
+      await rpc("cancel_order", { p_order_id: orderId, p_status: "refunded" });
     }
-  } else if (
-    (status === "cancelled" || status === "rejected" || status === "refunded") &&
-    current !== "paid"
-  ) {
-    if (current === "pending") await releaseStock(order);
-    order.status = status === "refunded" ? "refunded" : "cancelled";
-    order.cancelledAt = new Date().toISOString();
-    try {
-      await redisCommand("set", `order:${orderId}`, JSON.stringify(order), "EX", "604800");
-    } catch {
-      /* best effort */
-    }
+  } catch {
+    /* idempotente: NOT_FOUND / ALREADY_PAID se ignoran */
   }
 
   return res.status(200).json({ ok: true });

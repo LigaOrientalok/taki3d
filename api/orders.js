@@ -1,6 +1,8 @@
 const ADMIN_KEY = process.env.ADMIN_KEY;
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const SANITY_PROJECT = process.env.VITE_SANITY_PROJECT_ID || "cwozgtvj";
+const SANITY_DATASET = process.env.VITE_SANITY_DATASET || "production";
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 const json = (res, status, obj) => res.status(status).json(obj);
 
@@ -16,63 +18,98 @@ function parseBody(req) {
   return {};
 }
 
-async function redisCommand(...args) {
-  if (!UPSTASH_URL || !UPSTASH_TOKEN) throw new Error("UPSTASH_MISSING");
-  const path = args.map((a) => encodeURIComponent(String(a))).join("/");
-  const res = await fetch(`${UPSTASH_URL}/${path}`, {
-    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
+function supabaseReady() {
+  return Boolean(SUPABASE_URL && SUPABASE_SERVICE_KEY);
+}
+
+async function supaGet(path) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: {
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+    },
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`Redis error ${res.status}`);
-  return data.result;
+  if (!res.ok) {
+    const err = new Error(data?.message || `Supabase ${res.status}`);
+    err.code = data?.code || res.status;
+    throw err;
+  }
+  return data;
 }
 
-async function listOrders() {
-  const ids = (await redisCommand("zrange", "orders:all", "0", "-1")) || [];
-  if (ids.length === 0) return [];
-  const raws = (await redisCommand("mget", ...ids.map((id) => `order:${id}`))) || [];
-  const orders = raws
-    .filter(Boolean)
-    .map((r) => {
-      try {
-        return JSON.parse(r);
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean)
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  return orders;
-}
-
-async function getStockMap(orders) {
-  const productIds = [
-    ...new Set(
-      orders.flatMap((o) => (o.items || []).filter((i) => i.stockMode === "stock").map((i) => i.id)),
-    ),
-  ];
-  if (productIds.length === 0) return {};
-  const keys = productIds.map((id) => `stock:${id}`);
-  const values = (await redisCommand("mget", ...keys)) || [];
-  const map = {};
-  productIds.forEach((id, i) => {
-    map[id] = values[i] === null ? null : Number(values[i]);
+async function rpc(name, params) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
   });
-  return map;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data?.message || `Supabase ${res.status}`);
+    err.code = data?.code || res.status;
+    throw err;
+  }
+  return data;
+}
+
+async function patchProduct(id, fields) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(fields),
+    },
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data?.message || `Supabase ${res.status}`);
+    err.code = data?.code || res.status;
+    throw err;
+  }
+}
+
+async function fetchSanityProducts() {
+  const query = encodeURIComponent(
+    '*[_type == "product"] { _id, title, price, stockMode, quantity }',
+  );
+  const res = await fetch(
+    `https://${SANITY_PROJECT}.apicdn.sanity.io/v2024-01-01/data/query/${SANITY_DATASET}?query=${query}`,
+  );
+  if (!res.ok) throw new Error("Sanity error");
+  const data = await res.json();
+  return data.result || [];
 }
 
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
 
   if (!authorized(req)) return json(res, 401, { error: "No autorizado" });
+  if (!supabaseReady()) return json(res, 503, { error: "Base de datos no configurada" });
 
   if (req.method === "GET") {
     try {
-      const orders = await listOrders();
-      const stock = await getStockMap(orders);
-      return json(res, 200, { orders, stock });
+      const [orders, products] = await Promise.all([
+        supaGet("orders?select=*,order_items(*)&order=created_at.desc"),
+        supaGet("products?select=id,title,stock_mode,quantity"),
+      ]);
+      const stock = {};
+      products.forEach((p) => {
+        if (p.stock_mode === "stock") stock[p.id] = p.quantity;
+      });
+      return json(res, 200, { orders, stock, products });
     } catch {
-      return json(res, 503, { error: "Almacén no disponible" });
+      return json(res, 503, { error: "No se pudieron cargar los pedidos" });
     }
   }
 
@@ -83,28 +120,57 @@ export default async function handler(req, res) {
     } catch {
       return json(res, 400, { error: "Cuerpo inválido" });
     }
-    const { id, action } = body || {};
-    if (!id || action !== "cancel") return json(res, 400, { error: "Acción inválida" });
 
-    try {
-      const raw = await redisCommand("get", `order:${id}`);
-      if (!raw) return json(res, 404, { error: "Pedido no encontrado" });
-      const order = JSON.parse(raw);
-      if (order.status === "paid") return json(res, 409, { error: "El pedido ya fue pagado" });
-      if (order.status !== "cancelled") {
-        for (const item of order.items || []) {
-          if (item.stockMode === "stock") {
-            await redisCommand("incrby", `stock:${item.id}`, item.quantity);
-          }
+    const { action } = body || {};
+
+    if (action === "cancel") {
+      const { id } = body;
+      if (!id) return json(res, 400, { error: "Falta el id del pedido" });
+      try {
+        await rpc("cancel_order", { p_order_id: id, p_status: "cancelled" });
+        return json(res, 200, { ok: true });
+      } catch (err) {
+        if (err.code === "P0001" && err.message?.includes("ALREADY_PAID")) {
+          return json(res, 409, { error: "El pedido ya fue pagado" });
         }
-        order.status = "cancelled";
-        order.cancelledAt = new Date().toISOString();
-        await redisCommand("set", `order:${id}`, JSON.stringify(order), "EX", "604800");
+        if (err.message?.includes("NOT_FOUND")) {
+          return json(res, 404, { error: "Pedido no encontrado" });
+        }
+        return json(res, 503, { error: "No se pudo cancelar el pedido" });
       }
-      return json(res, 200, { ok: true, order });
-    } catch {
-      return json(res, 503, { error: "Almacén no disponible" });
     }
+
+    if (action === "sync") {
+      try {
+        const catalog = await fetchSanityProducts();
+        for (const p of catalog) {
+          await rpc("sync_product", {
+            p_id: p._id,
+            p_title: p.title,
+            p_price: Number(p.price),
+            p_stock_mode: p.stockMode === "stock" ? "stock" : "pedido",
+            p_qty: Number(p.quantity) || 0,
+          });
+        }
+        return json(res, 200, { ok: true, synced: catalog.length });
+      } catch {
+        return json(res, 502, { error: "No se pudo sincronizar el catálogo" });
+      }
+    }
+
+    if (action === "set-stock") {
+      const { productId, quantity } = body;
+      if (!productId) return json(res, 400, { error: "Falta el producto" });
+      const qty = Math.max(0, Math.floor(Number(quantity) || 0));
+      try {
+        await patchProduct(productId, { quantity: qty });
+        return json(res, 200, { ok: true });
+      } catch {
+        return json(res, 503, { error: "No se pudo actualizar el stock" });
+      }
+    }
+
+    return json(res, 400, { error: "Acción inválida" });
   }
 
   return json(res, 405, { error: "Método no permitido" });
