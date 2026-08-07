@@ -77,3 +77,35 @@ export async function fetchProducts(): Promise<Product[]> {
     return MOCK_PRODUCTS;
   }
 }
+
+export interface GalleryImageItem {
+  id: string;
+  title: string;
+  category: string;
+  image: string;
+}
+
+const GALLERY_QUERY = `*[_type == "galleryImage"] | order(order asc, _createdAt desc) {
+  _id,
+  title,
+  category,
+  "image": image.asset->url
+}`;
+
+export async function fetchGalleryImages(): Promise<GalleryImageItem[]> {
+  if (!sanityClient) return [];
+  try {
+    const docs = (await sanityClient.fetch(
+      GALLERY_QUERY,
+    )) as Array<{ _id: string; title: string; category: string; image: string }>;
+    return (docs ?? []).map((doc) => ({
+      id: doc._id,
+      title: doc.title,
+      category: doc.category ?? "Decoración",
+      image: doc.image,
+    }));
+  } catch (error) {
+    console.warn("No se pudieron cargar las fotos de la galería.", error);
+    return [];
+  }
+}

@@ -1,37 +1,67 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Gamepad2, Heart, Home, Plus, ShoppingBag, Sparkles, Wrench, X } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, Gamepad2, Heart, Home, Plus, ShoppingBag, Sparkles, Wrench, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import SectionHeading from "./SectionHeading";
+import { fetchGalleryImages } from "@/lib/sanity";
 
 type Cat = "Todos" | "Decoración" | "Anime" | "Gamer" | "Empresas" | "Repuestos" | "Hogar";
 
 const categories: Cat[] = ["Todos", "Decoración", "Anime", "Gamer", "Empresas", "Repuestos", "Hogar"];
 
-const items: {
+interface GalleryItem {
+  id: string;
   title: string;
   cat: Exclude<Cat, "Todos">;
   gradient: string;
   icon: typeof Home;
   tall?: boolean;
-}[] = [
-  { title: "Busto realista 3D", cat: "Decoración", gradient: "from-[#28A9FF]/60 to-[#0E0E10]", icon: Sparkles },
-  { title: "Figura de anime", cat: "Anime", gradient: "from-[#7c5cff]/50 to-[#0E0E10]", icon: Heart, tall: true },
-  { title: "Mascota en 3D", cat: "Decoración", gradient: "from-[#4CFF84]/40 to-[#0E0E10]", icon: Heart },
-  { title: "Control custom", cat: "Gamer", gradient: "from-[#28A9FF]/50 to-[#0E0E10]", icon: Gamepad2, tall: true },
-  { title: "Soporte de auriculares", cat: "Gamer", gradient: "from-[#7c5cff]/40 to-[#0E0E10]", icon: Gamepad2 },
-  { title: "Merchandising empresa", cat: "Empresas", gradient: "from-[#4CFF84]/40 to-[#0E0E10]", icon: ShoppingBag },
-  { title: "Bajo relieve con logo", cat: "Empresas", gradient: "from-[#28A9FF]/40 to-[#0E0E10]", icon: ShoppingBag, tall: true },
-  { title: "Engranaje de repuesto", cat: "Repuestos", gradient: "from-[#f5a524]/40 to-[#0E0E10]", icon: Wrench },
-  { title: "Clip de montaje", cat: "Repuestos", gradient: "from-[#28A9FF]/40 to-[#0E0E10]", icon: Wrench, tall: true },
-  { title: "Organizador de escritorio", cat: "Hogar", gradient: "from-[#4CFF84]/40 to-[#0E0E10]", icon: Home },
-  { title: "Portalápices", cat: "Hogar", gradient: "from-[#7c5cff]/40 to-[#0E0E10]", icon: Home, tall: true },
-  { title: "Maceta decorativa", cat: "Hogar", gradient: "from-[#f5a524]/40 to-[#0E0E10]", icon: Home },
+  image?: string;
+}
+
+const fallbackItems: GalleryItem[] = [
+  { id: "fb-1", title: "Busto realista 3D", cat: "Decoración", gradient: "from-[#28A9FF]/60 to-[#0E0E10]", icon: Sparkles },
+  { id: "fb-2", title: "Figura de anime", cat: "Anime", gradient: "from-[#7c5cff]/50 to-[#0E0E10]", icon: Heart, tall: true },
+  { id: "fb-3", title: "Mascota en 3D", cat: "Decoración", gradient: "from-[#4CFF84]/40 to-[#0E0E10]", icon: Heart },
+  { id: "fb-4", title: "Control custom", cat: "Gamer", gradient: "from-[#28A9FF]/50 to-[#0E0E10]", icon: Gamepad2, tall: true },
+  { id: "fb-5", title: "Soporte de auriculares", cat: "Gamer", gradient: "from-[#7c5cff]/40 to-[#0E0E10]", icon: Gamepad2 },
+  { id: "fb-6", title: "Merchandising empresa", cat: "Empresas", gradient: "from-[#4CFF84]/40 to-[#0E0E10]", icon: ShoppingBag },
+  { id: "fb-7", title: "Bajo relieve con logo", cat: "Empresas", gradient: "from-[#28A9FF]/40 to-[#0E0E10]", icon: ShoppingBag, tall: true },
+  { id: "fb-8", title: "Engranaje de repuesto", cat: "Repuestos", gradient: "from-[#f5a524]/40 to-[#0E0E10]", icon: Wrench },
+  { id: "fb-9", title: "Clip de montaje", cat: "Repuestos", gradient: "from-[#28A9FF]/40 to-[#0E0E10]", icon: Wrench, tall: true },
+  { id: "fb-10", title: "Organizador de escritorio", cat: "Hogar", gradient: "from-[#4CFF84]/40 to-[#0E0E10]", icon: Home },
+  { id: "fb-11", title: "Portalápices", cat: "Hogar", gradient: "from-[#7c5cff]/40 to-[#0E0E10]", icon: Home, tall: true },
+  { id: "fb-12", title: "Maceta decorativa", cat: "Hogar", gradient: "from-[#f5a524]/40 to-[#0E0E10]", icon: Home },
 ];
 
 export default function Gallery() {
   const [active, setActive] = useState<Cat>("Todos");
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [remoteItems, setRemoteItems] = useState<GalleryItem[]>([]);
 
+  useEffect(() => {
+    let mounted = true;
+    fetchGalleryImages().then((images) => {
+      if (!mounted) return;
+      if (images.length > 0) {
+        setRemoteItems(
+          images.map((img, index) => ({
+            id: img.id,
+            title: img.title,
+            cat: (img.category as Exclude<Cat, "Todos">) ?? "Decoración",
+            gradient: "from-brand-blue/40 to-brand-black",
+            icon: Camera,
+            tall: index % 4 === 0,
+            image: img.image,
+          })),
+        );
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const items = remoteItems.length > 0 ? remoteItems : fallbackItems;
   const filtered = items.filter((item) => active === "Todos" || item.cat === active);
   const activeItem = lightbox !== null ? filtered[lightbox] : undefined;
 
@@ -88,7 +118,7 @@ export default function Gallery() {
           <AnimatePresence mode="popLayout">
             {filtered.map((item, index) => (
               <motion.button
-                key={item.title}
+                key={item.id}
                 layout
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -102,11 +132,20 @@ export default function Gallery() {
                     item.tall ? "aspect-[3/4]" : "aspect-[4/3]"
                   }`}
                 >
-                  <div className="absolute inset-0 grid place-items-center">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-white/90 backdrop-blur-sm">
-                      <item.icon className="h-7 w-7" />
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 grid place-items-center">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-white/90 backdrop-blur-sm">
+                        <item.icon className="h-7 w-7" />
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                   <div className="absolute top-3 right-3 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-white/80 backdrop-blur-sm">
                     {item.cat}
@@ -146,9 +185,17 @@ export default function Gallery() {
               <div
                 className={`relative flex aspect-[16/10] w-full items-center justify-center bg-gradient-to-br ${activeItem.gradient}`}
               >
-                <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-white/10 text-white backdrop-blur-sm">
-                  <activeItem.icon className="h-10 w-10" />
-                </div>
+                {activeItem.image ? (
+                  <img
+                    src={activeItem.image}
+                    alt={activeItem.title}
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-white/10 text-white backdrop-blur-sm">
+                    <activeItem.icon className="h-10 w-10" />
+                  </div>
+                )}
                 <button
                   onClick={close}
                   className="absolute top-4 right-4 grid h-10 w-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-brand-blue"
