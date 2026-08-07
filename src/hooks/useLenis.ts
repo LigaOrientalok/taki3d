@@ -4,7 +4,9 @@ import { scrollToId, setLenis } from "@/lib/scroll";
 
 export function useLenis() {
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const mobile = window.matchMedia("(hover: none)").matches;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (mobile || reduced) return;
 
     const lenis = new Lenis({
       autoRaf: true,

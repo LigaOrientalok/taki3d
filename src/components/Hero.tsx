@@ -1,6 +1,6 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import PrinterIllustration from "./PrinterIllustration";
 
 export default function Hero() {
@@ -12,16 +12,23 @@ export default function Hero() {
   const visualY = useTransform(scrollYProgress, [0, 1], [0, 120]);
   const contentY = useTransform(scrollYProgress, [0, 1], [0, -60]);
 
+  const isMobile = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(hover: none)").matches,
+    [],
+  );
+
   const container = {
     hidden: {},
     visible: { transition: { staggerChildren: 0.12 } },
   };
   const item = {
-    hidden: { opacity: 0, y: 28, filter: "blur(6px)" },
+    hidden: { opacity: 0, y: 28, ...(isMobile ? {} : { filter: "blur(6px)" }) },
     visible: {
       opacity: 1,
       y: 0,
-      filter: "blur(0px)",
+      ...(isMobile ? {} : { filter: "blur(0px)" }),
       transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const },
     },
   };
@@ -34,8 +41,8 @@ export default function Hero() {
     >
       {/* soft background lights */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-40 -left-40 h-[480px] w-[480px] rounded-full bg-brand-blue/10 blur-[120px]" />
-        <div className="absolute top-1/3 -right-40 h-[420px] w-[420px] rounded-full bg-brand-blue/5 blur-[120px]" />
+        <div className="absolute -top-40 -left-40 h-[480px] w-[480px] rounded-full bg-brand-blue/10 blur-3xl lg:blur-[120px]" />
+        <div className="absolute top-1/3 -right-40 h-[420px] w-[420px] rounded-full bg-brand-blue/5 blur-3xl lg:blur-[120px]" />
         <div
           className="absolute inset-0 opacity-[0.35]"
           style={{

@@ -6,6 +6,12 @@ export default function Loader() {
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
+    const mobile = window.matchMedia("(hover: none)").matches;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (mobile || reduced) {
+      setHidden(true);
+      return;
+    }
     const t = setTimeout(() => setHidden(true), 1100);
     return () => clearTimeout(t);
   }, []);
