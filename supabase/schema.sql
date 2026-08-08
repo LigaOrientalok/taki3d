@@ -195,6 +195,43 @@ begin
 end;
 $$;
 
+-- Cancela pedidos pendientes que quedaron abandonados (pago MP iniciado y no
+-- completado, o pedidos por WhatsApp sin coordinar) y libera el stock reservado.
+create or replace function public.expire_pending_orders(p_age_hours int default 24)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_cutoff timestamptz := now() - (p_age_hours || ' hours')::interval;
+  v_order record;
+  v_item record;
+  v_count int := 0;
+begin
+  for v_order in
+    select id from public.orders
+    where status = 'pending' and created_at < v_cutoff
+    order by created_at
+  loop
+    for v_item in
+      select product_id, quantity, stock_mode
+      from public.order_items
+      where order_id = v_order.id
+    loop
+      if v_item.stock_mode = 'stock' then
+        update public.products
+          set quantity = quantity + v_item.quantity
+          where id = v_item.product_id;
+      end if;
+    end loop;
+    update public.orders set status = 'cancelled', cancelled_at = now() where id = v_order.id;
+    v_count := v_count + 1;
+  end loop;
+  return jsonb_build_object('ok', true, 'cancelled', v_count);
+end;
+$$;
+
 -- ============ SEGURIDAD ============
 
 alter table public.products enable row level security;
@@ -209,6 +246,7 @@ revoke execute on function public.sync_product(text, text, numeric, text, int) f
 revoke execute on function public.place_order(jsonb) from anon, authenticated;
 revoke execute on function public.confirm_order(text, text) from anon, authenticated;
 revoke execute on function public.cancel_order(text, text) from anon, authenticated;
+revoke execute on function public.expire_pending_orders(int) from anon, authenticated;
 
 grant all on table public.products to service_role;
 grant all on table public.orders to service_role;
@@ -218,3 +256,4 @@ grant execute on function public.sync_product(text, text, numeric, text, int) to
 grant execute on function public.place_order(jsonb) to service_role;
 grant execute on function public.confirm_order(text, text) to service_role;
 grant execute on function public.cancel_order(text, text) to service_role;
+grant execute on function public.expire_pending_orders(int) to service_role;
