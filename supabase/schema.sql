@@ -247,6 +247,7 @@ revoke execute on function public.place_order(jsonb) from anon, authenticated;
 revoke execute on function public.confirm_order(text, text) from anon, authenticated;
 revoke execute on function public.cancel_order(text, text) from anon, authenticated;
 revoke execute on function public.expire_pending_orders(int) from anon, authenticated;
+revoke execute on function public.expire_pending_orders(int) from public;
 
 grant all on table public.products to service_role;
 grant all on table public.orders to service_role;
