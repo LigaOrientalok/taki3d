@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const WHATSAPP_NUMBER = "59897844136";
-export const CONTACT_EMAIL = "taki3d.uy@gmail.com";
+export const CONTACT_EMAIL = "taki3duy@gmail.com";
 export const INSTAGRAM_USER = "taki.3d.uy";
 export const INSTAGRAM_URL = `https://www.instagram.com/${INSTAGRAM_USER}`;
 export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(

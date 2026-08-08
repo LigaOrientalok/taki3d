@@ -1,4 +1,4 @@
-import { AtSign, Check, Clock, Mail, MapPin, Phone, Send } from "lucide-react";
+import { AtSign, Check, Clock, Loader2, Mail, MapPin, Phone, Send } from "lucide-react";
 import { useState } from "react";
 import { CONTACT_EMAIL, INSTAGRAM_URL, INSTAGRAM_USER, WHATSAPP_URL } from "@/lib/utils";
 import SectionHeading from "./SectionHeading";
@@ -32,11 +32,28 @@ const contactInfo = [
 
 export default function Contact() {
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", message: "" });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSent(true);
+    setError(null);
+    setSending(true);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? "No se pudo enviar el mensaje");
+      setSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo enviar el mensaje");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -167,12 +184,25 @@ export default function Contact() {
                       className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/30 focus:outline-none"
                     />
                   </div>
+                  {error && (
+                    <p className="text-xs text-red-400">{error}</p>
+                  )}
                   <button
                     type="submit"
-                    className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-blue px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-blue/25 transition-all duration-300 hover:bg-white hover:text-brand-black sm:w-auto"
+                    disabled={sending}
+                    className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-blue px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-blue/25 transition-all duration-300 hover:bg-white hover:text-brand-black disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                   >
-                    Enviar mensaje
-                    <Send className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-0.5" />
+                    {sending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Enviando…
+                      </>
+                    ) : (
+                      <>
+                        Enviar mensaje
+                        <Send className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-0.5" />
+                      </>
+                    )}
                   </button>
                 </form>
               )}
