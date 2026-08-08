@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Box,
   Cake,
   Clapperboard,
   Gamepad2,
@@ -10,6 +11,19 @@ import {
   Sparkles,
   Wrench,
 } from "lucide-react";
+
+export const PLACEHOLDER_ICONS = {
+  Box,
+  Cake,
+  Clapperboard,
+  Gamepad2,
+  Heart,
+  Home,
+  KeyRound,
+  ShoppingBag,
+  Sparkles,
+  Wrench,
+} satisfies Record<string, LucideIcon>;
 
 export type StockMode = "stock" | "pedido";
 
@@ -26,7 +40,7 @@ export interface Product {
   video?: string;
   placeholder: {
     gradient: string;
-    icon: LucideIcon;
+    iconKey: keyof typeof PLACEHOLDER_ICONS;
   };
   featured?: boolean;
 }
@@ -60,7 +74,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "pedido",
     quantity: 0,
     images: [],
-    placeholder: { gradient: "from-brand-blue/50 to-brand-black", icon: Clapperboard },
+    placeholder: { gradient: "from-brand-blue/50 to-brand-black", iconKey: "Clapperboard" },
     featured: true,
   },
   {
@@ -74,7 +88,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "pedido",
     quantity: 0,
     images: [],
-    placeholder: { gradient: "from-brand-blue/50 to-brand-black", icon: Heart },
+    placeholder: { gradient: "from-brand-blue/50 to-brand-black", iconKey: "Heart" },
     featured: true,
   },
   {
@@ -88,7 +102,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "pedido",
     quantity: 0,
     images: [],
-    placeholder: { gradient: "from-brand-blue/60 to-brand-black", icon: Sparkles },
+    placeholder: { gradient: "from-brand-blue/60 to-brand-black", iconKey: "Sparkles" },
   },
   {
     id: "llavero-nombre",
@@ -101,7 +115,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "stock",
     quantity: 50,
     images: [],
-    placeholder: { gradient: "from-brand-blue/40 to-brand-black", icon: KeyRound },
+    placeholder: { gradient: "from-brand-blue/40 to-brand-black", iconKey: "KeyRound" },
     featured: true,
   },
   {
@@ -115,7 +129,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "stock",
     quantity: 12,
     images: [],
-    placeholder: { gradient: "from-brand-green/40 to-brand-black", icon: ShoppingBag },
+    placeholder: { gradient: "from-brand-green/40 to-brand-black", iconKey: "ShoppingBag" },
   },
   {
     id: "soporte-auriculares",
@@ -128,7 +142,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "stock",
     quantity: 8,
     images: [],
-    placeholder: { gradient: "from-brand-blue/50 to-brand-black", icon: Gamepad2 },
+    placeholder: { gradient: "from-brand-blue/50 to-brand-black", iconKey: "Gamepad2" },
     featured: true,
   },
   {
@@ -142,7 +156,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "stock",
     quantity: 5,
     images: [],
-    placeholder: { gradient: "from-brand-green/40 to-brand-black", icon: Home },
+    placeholder: { gradient: "from-brand-green/40 to-brand-black", iconKey: "Home" },
   },
   {
     id: "portalapices",
@@ -155,7 +169,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "stock",
     quantity: 15,
     images: [],
-    placeholder: { gradient: "from-brand-blue/40 to-brand-black", icon: Home },
+    placeholder: { gradient: "from-brand-blue/40 to-brand-black", iconKey: "Home" },
   },
   {
     id: "engranaje-a-medida",
@@ -168,7 +182,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "pedido",
     quantity: 0,
     images: [],
-    placeholder: { gradient: "from-brand-blue/50 to-brand-black", icon: Wrench },
+    placeholder: { gradient: "from-brand-blue/50 to-brand-black", iconKey: "Wrench" },
   },
   {
     id: "clip-montaje",
@@ -181,7 +195,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "pedido",
     quantity: 0,
     images: [],
-    placeholder: { gradient: "from-brand-blue/40 to-brand-black", icon: Wrench },
+    placeholder: { gradient: "from-brand-blue/40 to-brand-black", iconKey: "Wrench" },
   },
   {
     id: "cortante-galletas",
@@ -194,7 +208,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "pedido",
     quantity: 0,
     images: [],
-    placeholder: { gradient: "from-brand-blue/50 to-brand-black", icon: Cake },
+    placeholder: { gradient: "from-brand-blue/50 to-brand-black", iconKey: "Cake" },
   },
   {
     id: "figura-anime",
@@ -207,7 +221,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "pedido",
     quantity: 0,
     images: [],
-    placeholder: { gradient: "from-brand-blue/50 to-brand-black", icon: Sparkles },
+    placeholder: { gradient: "from-brand-blue/50 to-brand-black", iconKey: "Sparkles" },
   },
   {
     id: "pack-fichas-gaming",
@@ -220,7 +234,7 @@ export const MOCK_PRODUCTS: Product[] = [
     stockMode: "pedido",
     quantity: 0,
     images: [],
-    placeholder: { gradient: "from-brand-blue/40 to-brand-black", icon: Gamepad2 },
+    placeholder: { gradient: "from-brand-blue/40 to-brand-black", iconKey: "Gamepad2" },
   },
 ];
 

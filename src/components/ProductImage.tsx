@@ -1,4 +1,4 @@
-import type { Product } from "@/lib/store";
+import { PLACEHOLDER_ICONS, type Product } from "@/lib/store";
 
 export default function ProductImage({
   product,
@@ -20,12 +20,13 @@ export default function ProductImage({
       />
     );
   }
+  const Icon = PLACEHOLDER_ICONS[product.placeholder.iconKey] ?? PLACEHOLDER_ICONS.Box;
   return (
     <div
       className={`grid h-full w-full place-items-center bg-gradient-to-br ${product.placeholder.gradient} ${className ?? ""}`}
     >
       <div className="grid h-20 w-20 place-items-center rounded-3xl bg-white/10 text-white/90 backdrop-blur-sm">
-        <product.placeholder.icon className={iconSize} />
+        <Icon className={iconSize} />
       </div>
     </div>
   );

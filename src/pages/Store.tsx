@@ -10,7 +10,7 @@ type Sort = "destacados" | "menor" | "mayor";
 export default function Store() {
   const [category, setCategory] = useState("Todos");
   const [sort, setSort] = useState<Sort>("destacados");
-  const { products: allProducts } = useProducts();
+  const { products: allProducts, loading } = useProducts();
 
   const products = useMemo(() => {
     let list = [...allProducts];
@@ -89,7 +89,14 @@ export default function Store() {
           ))}
         </motion.div>
 
-        {products.length === 0 && (
+        {products.length === 0 && loading && (
+          <div className="mt-20 flex flex-col items-center gap-3 text-center">
+            <div className="h-12 w-12 animate-spin rounded-full border-2 border-white/10 border-t-brand-blue" />
+            <p className="text-zinc-400">Cargando productos…</p>
+          </div>
+        )}
+
+        {products.length === 0 && !loading && (
           <div className="mt-20 flex flex-col items-center gap-3 text-center">
             <LayoutGrid className="h-10 w-10 text-zinc-600" />
             <p className="text-zinc-400">No hay productos en esta categoría todavía.</p>

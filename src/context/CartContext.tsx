@@ -17,6 +17,7 @@ export interface CartItem {
 interface CartContextValue {
   items: CartItem[];
   isOpen: boolean;
+  hydrated: boolean;
   openCart: () => void;
   closeCart: () => void;
   addItem: (product: Product, quantity?: number) => void;
@@ -98,6 +99,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       value={{
         items,
         isOpen,
+        hydrated,
         openCart: () => setIsOpen(true),
         closeCart: () => setIsOpen(false),
         addItem,

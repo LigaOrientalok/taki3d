@@ -9,7 +9,7 @@ import {
   Store,
 } from "lucide-react";
 import ProductImage from "@/components/ProductImage";
-import { useCart } from "@/context/CartContext";
+import { useCart, type CartItem } from "@/context/CartContext";
 import { formatPrice } from "@/lib/store";
 import { cn, whatsappLink } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ const emptyForm: FormState = {
 };
 
 export default function CheckoutPage() {
-  const { items, clearCart } = useCart();
+  const { items, clearCart, hydrated } = useCart();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [placed, setPlaced] = useState(false);
   const [mpSuccess, setMpSuccess] = useState(false);
@@ -49,13 +49,31 @@ export default function CheckoutPage() {
   const [orderNumber, setOrderNumber] = useState<string | null>(() =>
     new URLSearchParams(window.location.search).get("order"),
   );
-  const [cartSnapshot] = useState(() => items);
+  const [cartSnapshot, setCartSnapshot] = useState<CartItem[]>([]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (items.length > 0) {
+      setCartSnapshot(items);
+      localStorage.setItem("taki3d-last-order-items", JSON.stringify(items));
+    }
+  }, [hydrated, items]);
 
   useEffect(() => {
     if (returnStatus === "success") {
       const saved = localStorage.getItem("taki3d-last-order");
       if (saved) setOrderNumber(saved);
+      const savedItems = localStorage.getItem("taki3d-last-order-items");
+      if (savedItems) {
+        try {
+          const parsed = JSON.parse(savedItems) as CartItem[];
+          if (Array.isArray(parsed)) setCartSnapshot(parsed);
+        } catch {
+          void 0;
+        }
+      }
       localStorage.removeItem("taki3d-last-order");
+      localStorage.removeItem("taki3d-last-order-items");
       setMpSuccess(true);
       setPlaced(true);
       clearCart();
@@ -66,7 +84,7 @@ export default function CheckoutPage() {
     }
   }, [returnStatus, clearCart]);
 
-  if (items.length === 0 && !placed && returnStatus !== "success")
+  if (hydrated && items.length === 0 && !placed && returnStatus !== "success")
     return <Navigate to="/tienda" replace />;
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>

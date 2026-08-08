@@ -1,9 +1,12 @@
 import { createClient, type ClientConfig } from "@sanity/client";
-import { Box } from "lucide-react";
 import { MOCK_PRODUCTS, type Product } from "./store";
 
 const projectId = import.meta.env.VITE_SANITY_PROJECT_ID ?? "";
 const dataset = import.meta.env.VITE_SANITY_DATASET ?? "production";
+
+function fallbackProducts(): Product[] {
+  return import.meta.env.DEV ? MOCK_PRODUCTS : [];
+}
 
 const config: ClientConfig = {
   projectId,
@@ -94,23 +97,23 @@ function mapDoc(doc: SanityProductDoc): Product {
     video: doc.video,
     placeholder: {
       gradient: doc.placeholderGradient || "from-brand-blue/40 to-brand-black",
-      icon: Box,
+      iconKey: "Box",
     },
   };
 }
 
 export async function fetchProducts(): Promise<Product[]> {
-  if (!sanityClient) return MOCK_PRODUCTS;
+  if (!sanityClient) return fallbackProducts();
   return withCache("products", () =>
     withTimeout(sanityClient.fetch(PRODUCT_QUERY))
       .then((docs) => {
         const list = docs as SanityProductDoc[];
-        if (!list || list.length === 0) return MOCK_PRODUCTS;
+        if (!list || list.length === 0) return fallbackProducts();
         return list.map(mapDoc);
       })
       .catch((error) => {
-        console.warn("No se pudieron cargar los productos de Sanity, usando catálogo local.", error);
-        return MOCK_PRODUCTS;
+        console.warn("No se pudieron cargar los productos de Sanity.", error);
+        return fallbackProducts();
       }),
   );
 }

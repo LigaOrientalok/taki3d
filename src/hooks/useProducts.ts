@@ -8,7 +8,7 @@ interface LiveStockEntry {
 }
 
 export function useProducts() {
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>(import.meta.env.DEV ? MOCK_PRODUCTS : []);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
