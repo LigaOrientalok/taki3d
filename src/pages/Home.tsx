@@ -8,7 +8,6 @@ import Stats from "@/components/Stats";
 import Timeline from "@/components/Timeline";
 import WhyChoose from "@/components/WhyChoose";
 
-const Gallery = lazy(() => import("@/components/Gallery"));
 const Testimonials = lazy(() => import("@/components/Testimonials"));
 const InstagramFeed = lazy(() => import("@/components/InstagramFeed"));
 
@@ -21,9 +20,6 @@ export default function Home() {
     <>
       <Hero />
       <Services />
-      <Suspense fallback={<SectionFallback />}>
-        <Gallery />
-      </Suspense>
       <About />
       <Timeline />
       <WhyChoose />

@@ -42,12 +42,6 @@ export default function CTA() {
                   <ShoppingBag className="h-4 w-4" />
                   Ir a la tienda
                 </Link>
-                <a
-                  href="#galeria"
-                  className="inline-flex h-13 items-center justify-center rounded-full glass px-8 text-sm font-semibold text-white transition-all duration-300 hover:border-brand-blue/50 hover:text-brand-blue"
-                >
-                  Ver trabajos
-                </a>
               </div>
             </div>
           </div>

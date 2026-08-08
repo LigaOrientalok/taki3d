@@ -114,38 +114,3 @@ export async function fetchProducts(): Promise<Product[]> {
       }),
   );
 }
-
-export interface GalleryImageItem {
-  id: string;
-  title: string;
-  category: string;
-  image: string;
-}
-
-const GALLERY_QUERY = `*[_type == "galleryImage"] | order(order asc, _createdAt desc) {
-  _id,
-  title,
-  category,
-  "image": image.asset->url
-}`;
-
-export async function fetchGalleryImages(): Promise<GalleryImageItem[]> {
-  if (!sanityClient) return [];
-  return withCache("gallery", () =>
-    withTimeout(sanityClient.fetch(GALLERY_QUERY))
-      .then((docs) =>
-        (docs as Array<{ _id: string; title: string; category: string; image: string }>).map(
-          (doc) => ({
-            id: doc._id,
-            title: doc.title,
-            category: doc.category ?? "Decoración",
-            image: optimizeImage(doc.image, 800),
-          }),
-        ),
-      )
-      .catch((error) => {
-        console.warn("No se pudieron cargar las fotos de la galería.", error);
-        return [];
-      }),
-  );
-}
