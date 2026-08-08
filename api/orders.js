@@ -1,15 +1,27 @@
+import { createHash, timingSafeEqual } from "node:crypto";
+import { clientIp, createLimiter, tooMany } from "./_rate-limit.js";
+
 const ADMIN_KEY = process.env.ADMIN_KEY;
 const SANITY_PROJECT = process.env.VITE_SANITY_PROJECT_ID || "cwozgtvj";
 const SANITY_DATASET = process.env.VITE_SANITY_DATASET || "production";
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const limitAdmin = createLimiter(60);
+const limitAdminFail = createLimiter(10, 10 * 60_000);
 
 const json = (res, status, obj) => res.status(status).json(obj);
 
+function constantEquals(a, b) {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
 function authorized(req) {
   const header = req.headers?.authorization || "";
-  const key = header.startsWith("Bearer ") ? header.slice(7) : String(req.query?.key || "");
-  return ADMIN_KEY && key === ADMIN_KEY;
+  if (!header.startsWith("Bearer ")) return false;
+  const key = header.slice(7);
+  return Boolean(ADMIN_KEY) && constantEquals(key, ADMIN_KEY);
 }
 
 function parseBody(req) {
@@ -94,7 +106,14 @@ async function fetchSanityProducts() {
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
 
-  if (!authorized(req)) return json(res, 401, { error: "No autorizado" });
+  const general = limitAdmin(clientIp(req));
+  if (!general.ok) return tooMany(res, general.retryAfter, "Demasiadas solicitudes");
+
+  if (!authorized(req)) {
+    const fail = limitAdminFail(`fail:${clientIp(req)}`);
+    if (!fail.ok) return tooMany(res, fail.retryAfter, "Demasiados intentos, esperá un rato");
+    return json(res, 401, { error: "No autorizado" });
+  }
   if (!supabaseReady()) return json(res, 503, { error: "Base de datos no configurada" });
 
   if (req.method === "GET") {

@@ -1,6 +1,9 @@
+import { clientIp, createLimiter, tooMany } from "./_rate-limit.js";
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL || "taki3duy@gmail.com";
 const FROM = process.env.RESEND_FROM || "TAKI3D Web <onboarding@resend.dev>";
+const limitContact = createLimiter(5);
 
 const json = (res, status, obj) => res.status(status).json(obj);
 
@@ -22,6 +25,9 @@ function escapeHtml(value) {
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
   if (req.method !== "POST") return json(res, 405, { error: "Método no permitido" });
+
+  const check = limitContact(clientIp(req));
+  if (!check.ok) return tooMany(res, check.retryAfter, "Demasiados mensajes, esperá un momento");
 
   let body;
   try {

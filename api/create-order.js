@@ -1,8 +1,11 @@
+import { clientIp, createLimiter, tooMany } from "./_rate-limit.js";
+
 const MP_TOKEN = process.env.MP_ACCESS_TOKEN;
 const SANITY_PROJECT = process.env.VITE_SANITY_PROJECT_ID || "cwozgtvj";
 const SANITY_DATASET = process.env.VITE_SANITY_DATASET || "production";
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const limitOrder = createLimiter(10);
 
 const json = (res, status, obj) => res.status(status).json(obj);
 
@@ -73,6 +76,9 @@ async function fetchSanityProducts() {
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
   if (req.method !== "POST") return json(res, 405, { error: "Método no permitido" });
+
+  const check = limitOrder(clientIp(req));
+  if (!check.ok) return tooMany(res, check.retryAfter, "Demasiados pedidos, esperá un momento");
 
   let body;
   try {

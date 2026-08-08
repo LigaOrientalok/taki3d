@@ -247,6 +247,12 @@ revoke execute on function public.place_order(jsonb) from anon, authenticated;
 revoke execute on function public.confirm_order(text, text) from anon, authenticated;
 revoke execute on function public.cancel_order(text, text) from anon, authenticated;
 revoke execute on function public.expire_pending_orders(int) from anon, authenticated;
+-- IMPORTANTE: revocar de "public" también. En Postgres, anon y authenticated son
+-- miembros de PUBLIC, así que revocar solo de esas dos roles no alcanza.
+revoke execute on function public.sync_product(text, text, numeric, text, int) from public;
+revoke execute on function public.place_order(jsonb) from public;
+revoke execute on function public.confirm_order(text, text) from public;
+revoke execute on function public.cancel_order(text, text) from public;
 revoke execute on function public.expire_pending_orders(int) from public;
 
 grant all on table public.products to service_role;

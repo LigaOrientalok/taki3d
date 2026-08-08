@@ -47,7 +47,9 @@ export default function AdminPage() {
     async (token: string) => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/orders?key=${encodeURIComponent(token)}`);
+        const res = await fetch(`/api/orders`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
           if (res.status === 401) {
@@ -86,9 +88,9 @@ export default function AdminPage() {
   const cancelOrder = async (id: string) => {
     const token = sessionStorage.getItem("taki3d-admin-key") ?? "";
     try {
-      const res = await fetch(`/api/orders?key=${encodeURIComponent(token)}`, {
+      const res = await fetch(`/api/orders`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id, action: "cancel" }),
       });
       if (res.ok) load(token);
@@ -105,9 +107,9 @@ export default function AdminPage() {
     const token = sessionStorage.getItem("taki3d-admin-key") ?? "";
     setSyncing(true);
     try {
-      const res = await fetch(`/api/orders?key=${encodeURIComponent(token)}`, {
+      const res = await fetch(`/api/orders`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: "sync" }),
       });
       const data = await res.json().catch(() => null);
@@ -123,9 +125,9 @@ export default function AdminPage() {
   const updateStock = async (productId: string, quantity: number) => {
     const token = sessionStorage.getItem("taki3d-admin-key") ?? "";
     try {
-      const res = await fetch(`/api/orders?key=${encodeURIComponent(token)}`, {
+      const res = await fetch(`/api/orders`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: "set-stock", productId, quantity }),
       });
       if (res.ok) load(token);
